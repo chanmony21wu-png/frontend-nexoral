@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 
-// The products and the orders live in the Laravel + MySQL backend.
-// In development, vite.config.js sends  /api  and  /storage  to  http://127.0.0.1:8000
+// Live site: VITE_API_URL is set in Vercel (https://backend-nexoral-app.onrender.com/api)
+// Local dev: not set, so it falls back to "/api" and the Vite proxy sends it to Laravel
+const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 async function api(path, { method = "GET", body } = {}) {
   const headers = { Accept: "application/json" };
@@ -11,7 +12,7 @@ async function api(path, { method = "GET", body } = {}) {
     payload = JSON.stringify(body);
   }
 
-  const res = await fetch(`/api/${path}`, { method, headers, body: payload });
+  const res = await fetch(`${API_URL}/${path}`, { method, headers, body: payload });
   let data = null;
   try {
     data = await res.json();
@@ -28,13 +29,13 @@ const CACHE_KEY = "nexora_products_cache";
 const readCache = () => {
   try {
     const list = JSON.parse(localStorage.getItem(CACHE_KEY));
-    return Array.isArray(list) && list.length > 0 ? list : null; // an empty saved list is not useful
+    return Array.isArray(list) && list.length > 0 ? list : null;
   } catch {
     return null;
   }
 };
 
-// asks the server up to 3 times (the first request after "php artisan serve" can be slow)
+// asks the server up to 3 times (Render's free server can take a while to wake up)
 async function fetchProducts() {
   let lastError;
   for (let n = 0; n < 3; n++) {
@@ -50,15 +51,11 @@ async function fetchProducts() {
 
 let running = null; // one request at a time
 
-export async function useProducts() {
-  // start with the last list from the database, so the page never shows an old list first
+export function useProducts() {
   const [state, setState] = useState(() => {
     const cached = readCache();
     return { products: cached || [], loaded: Boolean(cached), error: false, loading: !cached };
   });
-  const API_URL = import.meta.env.VITE_API_URL;
-
-  const res = await fetch(`${API_URL}/products`);
 
   const reload = useCallback(() => {
     if (!running) {
