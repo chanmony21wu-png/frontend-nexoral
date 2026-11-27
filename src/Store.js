@@ -50,12 +50,15 @@ async function fetchProducts() {
 
 let running = null; // one request at a time
 
-export function useProducts() {
+export async function useProducts() {
   // start with the last list from the database, so the page never shows an old list first
   const [state, setState] = useState(() => {
     const cached = readCache();
     return { products: cached || [], loaded: Boolean(cached), error: false, loading: !cached };
   });
+  const API_URL = import.meta.env.VITE_API_URL;
+
+  const res = await fetch(`${API_URL}/products`);
 
   const reload = useCallback(() => {
     if (!running) {
